@@ -41,8 +41,6 @@ data/scripts/bug_catching_contest.inc
 src/data/items.h
 include/constants/map_groups.h
 data/scripts/move_tutors.inc
-.cproject
-.project
-.settings/org.eclipse.cdt.core.prefs
+src/data/wild_encounters.h
 berry_fix/ld_script.sed
 berry_fix/payload/ld_script.sed

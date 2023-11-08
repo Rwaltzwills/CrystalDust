@@ -5,12 +5,16 @@
 #include "field_effect_helpers.h"
 #include "fieldmap.h"
 #include "field_player_avatar.h"
+#include "item.h"
 #include "mevent.h"
+#include "party_menu.h"
 #include "pokemon_storage_system.h"
+#include "script_pokemon_util.h"
 #include "string_util.h"
 #include "tv.h"
 #include "util.h"
 #include "constants/event_objects.h"
+#include "constants/items.h"
 #include "constants/layouts.h"
 #include "constants/map_scripts.h"
 #include "constants/moves.h"
@@ -1237,4 +1241,123 @@ void EnableMsgBoxWalkaway(void)
 bool8 IsMsgBoxWalkawayDisabled(void)
 {
     return sMsgBoxWalkawayDisabled;
+}
+
+void TeachTrappedTentacoolSurf(void)
+{
+    u32 i;
+    u32 move = MOVE_SURF;
+    u32 pp = 15;
+    if(gSpecialVar_0x8007 == 0) //party
+    {
+        i = CalculatePlayerPartyCount() - 1;
+        SetMonData(&gPlayerParty[i], MON_DATA_MOVE4, &move);
+        SetMonData(&gPlayerParty[i], MON_DATA_PP1 + 3, &pp);
+        return;
+    }
+    else //box
+    {
+        SetBoxMonDataAt(gSpecialVar_MonBoxId, gSpecialVar_MonBoxPos, MON_DATA_MOVE4, &move);
+        SetBoxMonDataAt(gSpecialVar_MonBoxId, gSpecialVar_MonBoxPos, MON_DATA_PP1 + 3, &pp);
+        return;
+    }
+}
+
+// ChatGPT optimized
+void CheckPlayerTrappedOnCianwoodOrCinnabar(void)
+{
+    bool32 hasHM03 = CheckBagHasItem(ITEM_HM03, 1);
+    u32 i, j;
+
+    for (i = 0; i < PARTY_SIZE; i++) {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) == SPECIES_NONE) {
+            break;
+        } else {
+            struct Pokemon* partyMon = &gPlayerParty[i];
+            if (!GetMonData(partyMon, MON_DATA_IS_EGG) && MonKnowsMove(partyMon, MOVE_SURF)) {
+                gSpecialVar_Result = 0;
+                return;
+            }
+            if (hasHM03 && CanMonLearnTMHM(partyMon, ITEM_HM03 - ITEM_TM01_FOCUS_PUNCH)) {
+                gSpecialVar_Result = 0;
+                return;
+            }
+        }
+    }
+
+    for (i = 0; i < TOTAL_BOXES_COUNT; i++) {
+        for (j = 0; j < IN_BOX_COUNT; j++) {
+            if (GetBoxMonDataAt(i, j, MON_DATA_SPECIES) == SPECIES_NONE) {
+                continue;
+            } else {
+                struct Pokemon tempMon;
+                BoxMonToMon(GetBoxedMonPtr(i, j), &tempMon);
+                if (!GetMonData(&tempMon, MON_DATA_IS_EGG) && MonKnowsMove(&tempMon, MOVE_SURF)) {
+                    gSpecialVar_Result = 0;
+                    return;
+                }
+                if (hasHM03 && CanMonLearnTMHM(&tempMon, ITEM_HM03 - ITEM_TM01_FOCUS_PUNCH)) {
+                    gSpecialVar_Result = 0;
+                    return;
+                }
+            }
+        }
+    }
+
+    if(hasHM03)
+        gSpecialVar_Result = 1;
+    else
+        gSpecialVar_Result = 2; // need to teach Tentacool Surf
+}
+
+// ChatGPT optimized
+void CheckPlayerTrappedAtIndigoPlateau(void)
+{
+    bool32 hasHM03 = CheckBagHasItem(ITEM_HM03, 1);
+    bool32 hasHM02 = CheckBagHasItem(ITEM_HM02, 1);
+    bool32 hasKantoFlyPoint = FlagGet(FLAG_VISITED_VERMILION_CITY);
+    u32 i, j;
+
+    for (i = 0; i < PARTY_SIZE; i++) {
+        if (GetMonData(&gPlayerParty[i], MON_DATA_SPECIES, NULL) == SPECIES_NONE) {
+            break;
+        } else {
+            struct Pokemon* partyMon = &gPlayerParty[i];
+            if (!GetMonData(partyMon, MON_DATA_IS_EGG) && 
+                (MonKnowsMove(partyMon, MOVE_SURF) || 
+                 (MonKnowsMove(partyMon, MOVE_FLY) && hasKantoFlyPoint))) {
+                gSpecialVar_Result = 0;
+                return;
+            }
+            if ((hasHM03 && CanMonLearnTMHM(partyMon, ITEM_HM03 - ITEM_TM01_FOCUS_PUNCH)) ||
+                (hasHM02 && CanMonLearnTMHM(partyMon, ITEM_HM02 - ITEM_TM01_FOCUS_PUNCH) && hasKantoFlyPoint)) {
+                gSpecialVar_Result = 0;
+                return;
+            }
+        }
+    }
+
+    for (i = 0; i < TOTAL_BOXES_COUNT; i++) {
+        for (j = 0; j < IN_BOX_COUNT; j++) {
+            if (GetBoxMonDataAt(i, j, MON_DATA_SPECIES) == SPECIES_NONE) {
+                continue;
+            } else {
+                struct Pokemon tempMon;
+                BoxMonToMon(GetBoxedMonPtr(i, j), &tempMon);
+                if (!GetMonData(&tempMon, MON_DATA_IS_EGG) &&
+                    (MonKnowsMove(&tempMon, MOVE_SURF) || 
+                     (MonKnowsMove(&tempMon, MOVE_FLY) && hasKantoFlyPoint))) {
+                    gSpecialVar_Result = 0;
+                    return;
+                }
+                if ((hasHM03 && CanMonLearnTMHM(&tempMon, ITEM_HM03 - ITEM_TM01_FOCUS_PUNCH)) ||
+                    (hasHM02 && CanMonLearnTMHM(&tempMon, ITEM_HM02 - ITEM_TM01_FOCUS_PUNCH) && hasKantoFlyPoint)) {
+                    gSpecialVar_Result = 0;
+                    return;
+                }
+            }
+        }
+    }
+
+    gSpecialVar_Result = 1; // trapped
 }
